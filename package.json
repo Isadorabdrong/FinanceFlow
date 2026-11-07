@@ -1,0 +1,25 @@
+{
+  "name": "finance-flow",
+  "version": "2.0.0",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "node scripts/check-package-manager.mjs",
+    "dev": "node scripts/dev.mjs",
+    "build": "pnpm run typecheck && pnpm run build:portable",
+    "start": "python3 -m backend",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "pnpm --filter @workspace/finance-flow run typecheck",
+    "build:portable": "pnpm --filter @workspace/finance-flow run build && node scripts/package-portable.mjs",
+    "test:api": "python3 -m pytest backend/tests -q"
+  },
+  "private": true,
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "type": "module"
+}
