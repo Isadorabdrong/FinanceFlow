@@ -1,99 +1,66 @@
 # Finance Flow
 
-Controle financeiro com duas telas: **Painel** e **Movimentações**. Interface em rosé e ameixa, com perfil, avatar e saudação pessoal. Bitcoin, dólar e euro aparecem logo abaixo do título, antes do resumo financeiro e dos lançamentos. A data e o relógio no cabeçalho usam o horário de Brasília. Sem frases de marketing, sombras, desfoques ou animações decorativas.
+Controle financeiro pessoal com conta para cada pessoa: entradas, saídas, saldo por período, saídas por categoria e cotações do dólar, euro e bitcoin em reais.
 
-## Abrir sem instalar
+Feito em **React + TypeScript** com **Supabase** (autenticação e banco PostgreSQL). Cada usuário cria a própria conta e vê só os próprios lançamentos — não existe administrador.
 
-Dê dois cliques em **`Finance-Flow.html`**, na pasta principal do ZIP extraído. O aplicativo abre no navegador, sem npm, Node.js, terminal ou servidor. Cadastro, edição, exclusão, filtros, perfil e CSV funcionam sem internet. As cotações precisam de conexão. A cópia em `portable/Finance-Flow.html` é idêntica e continua incluída para compatibilidade com o backend.
+**[Abrir o site](https://isadorabdrong.github.io/FinanceFlow/)** · por [Isadora Drong](https://www.linkedin.com/in/isadora-drong/)
 
-O arquivo HTML contém o aplicativo compilado. O código legível, os testes e a API Python também estão neste projeto; o HTML minificado não é o material destinado à revisão de código.
+![Painel](docs/painel.png)
 
-## Dois modos de uso
+| Entrar / criar conta | Celular |
+| --- | --- |
+| ![Login](docs/login.png) | <img src="docs/celular.png" width="260" alt="Painel no celular"> |
 
-| Modo | Como abrir | Onde salva |
-| --- | --- | --- |
-| Arquivo independente | `Finance-Flow.html` na pasta principal | LocalStorage do navegador |
-| Aplicação com API | `http://127.0.0.1:8000` com o backend iniciado | SQLite, por meio da API FastAPI |
+## Funcionalidades
 
-O HTML independente utiliza o armazenamento do navegador tanto ao abrir por `file://` quanto em uma hospedagem estática. O modo API só é ativado explicitamente pelo servidor Python ou pela entrada de desenvolvimento do Vite, por meio da meta `finance-flow-mode`. Assim, abrir uma prévia HTTP do arquivo não causa pedidos a um backend inexistente. A API não recebe nem importa automaticamente os lançamentos do HTML. O banco começa vazio; os exemplos são exclusivos da primeira abertura do arquivo independente. Falha da API não provoca troca silenciosa para outro armazenamento.
+- Cadastro com e-mail e senha, login, recuperação de senha e edição do nome.
+- Cadastrar, editar e excluir lançamentos (com confirmação antes de excluir).
+- Um único filtro de período no painel que vale para os totais, o gráfico, as categorias e a lista.
+- Busca e filtros por tipo, categoria e período; exportação em CSV.
+- Cotações em reais (AwesomeAPI e Binance), com fonte e horário de cada valor. Se a fonte falhar, aparece “indisponível” — nenhum valor é inventado.
+- Relógio no horário de Brasília.
 
-## Versão Python para desenvolvimento e portfólio
+## Segurança dos dados
 
-Requisitos: Python 3.11 ou superior. Na raiz do projeto, em um ambiente virtual de sua preferência:
+A tabela `transactions` usa **Row Level Security** no PostgreSQL: as políticas só permitem ler, criar, editar e excluir linhas em que `user_id` é o usuário logado. Visitantes sem login não têm acesso à tabela. Os valores são guardados em **centavos inteiros** (`amount_cents`) para evitar erro de arredondamento. O SQL está em [`supabase/migrations`](supabase/migrations/001_transactions.sql).
 
-```bash
-python -m pip install -r backend/requirements-dev.txt
-python -m backend
-```
+A chave usada no front é a *publishable key* do Supabase, feita para ficar pública: o que ela pode fazer é limitado pelas políticas RLS.
 
-Abra `http://127.0.0.1:8000`. A API serve o HTML já incluído em `portable`; não é preciso compilar o frontend para usar esse modo. A documentação interativa dos endpoints está em `http://127.0.0.1:8000/docs`.
+## Rodar no computador
 
-O SQLite fica em `backend/data/finance-flow.sqlite3`. A variável `FINANCE_FLOW_DB` permite escolher outro caminho; `API_PORT` altera a porta. O servidor escuta apenas em `127.0.0.1`. Esta versão é local e individual: não inclui autenticação, contas bancárias conectadas ou sincronização em nuvem.
-
-## Estrutura e decisões
-
-- `artifacts/finance-flow/src/App.tsx`: as duas telas, filtros, gráficos e formulário.
-- `src/components/modal.tsx`: `<dialog>` nativo, foco contido, Escape e retorno de foco.
-- `src/components/profile.tsx`: perfil editável, iniciais do avatar e compatibilidade com o nome salvo na versão anterior.
-- `src/lib/runtime.ts`: lê o modo de execução declarado no HTML; não presume que HTTP significa servidor Python.
-- `src/hooks/use-ledger.ts`: escolhe a persistência pelo modo declarado e aguarda confirmação da API antes de atualizar a interface.
-- `src/lib/finance.ts`: valores brasileiros, datas, totais em centavos, períodos e CSV.
-- `src/hooks/use-market.ts`: consulta automática, conexão Bitcoin, reconexão e preservação de valores recebidos.
-- `src/lib/market.ts`: valida preço, moeda e horário da fonte; não inventa cotação ausente.
-- `backend/models.py`: validação das entradas e respostas com Pydantic.
-- `backend/database.py`: consultas SQL parametrizadas, transações e índice por data.
-- `backend/app.py`: endpoints FastAPI, inicialização do banco e entrega da interface.
-- `backend/market.py`: consulta de cotações no servidor, com cache de 60 segundos e origem externa fixa.
-- `backend/tests`: testes da API com bancos temporários e fontes externas simuladas.
-- `tests`: testes das regras financeiras e da validação de cotações.
-
-Os caminhos abreviados `src/` acima pertencem a `artifacts/finance-flow/`.
-
-Valores na API e no SQLite são **centavos inteiros** (`amount_cents`). O frontend converte para reais somente para exibição. Datas são datas civis; timestamps das cotações são exibidos em Brasília. Os endpoints de lista e resumo aceitam `start` e `end`. SQLite foi escolhido para permitir inspeção do banco e execução local sem outro serviço; uma aplicação multiusuário exigiria autenticação e isolamento por usuário.
-
-## Endpoints
-
-| Método | Caminho | Finalidade |
-| --- | --- | --- |
-| GET | `/api/health` | Estado do serviço |
-| GET | `/api/transactions` | Listar movimentações, com período opcional |
-| POST | `/api/transactions` | Cadastrar |
-| PUT | `/api/transactions/{id}` | Atualizar |
-| DELETE | `/api/transactions/{id}` | Excluir |
-| GET | `/api/summary` | Entradas, despesas e saldo em centavos |
-| GET | `/api/market/quotes` | Consultar Bitcoin, dólar e euro |
-
-## Cotações
-
-Bitcoin usa o stream público `BTCBRL` da Binance. “Ao vivo” só aparece depois de uma mensagem válida e recente; após 15 segundos sem atualização, a indicação é retirada. Havendo falha do stream, uma cotação disponível da AwesomeAPI pode ser usada, com a atualização de 60 segundos claramente identificada.
-
-Dólar e euro usam o preço de compra da AwesomeAPI, consultado a cada 60 segundos enquanto a página está visível. A modalidade gratuita da fonte mantém cache de até um minuto: não equivale a uma cotação instantânea de corretora. Em fins de semana e feriados, o horário da fonte pode continuar no último dia disponível. Um pedido novo não altera artificialmente esse horário.
-
-No HTML independente, a consulta HTTPS é feita pelo navegador e depende das regras de origem da fonte e da conexão. Na versão FastAPI, o navegador consulta a própria origem e o servidor faz a requisição externa, eliminando a dependência de CORS dessa consulta. Em ambos os modos, valores antigos são identificados e falhas de mercado não impedem os lançamentos.
-
-Documentação das fontes: [AwesomeAPI](https://docs.awesomeapi.com.br/api-de-moedas) e [Binance](https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams).
-
-## Testes e alteração do frontend
+Requisitos: Node 20+.
 
 ```bash
-python -m pytest backend/tests -q
+npm install
+npm run dev      # http://localhost:5173
+npm test         # regras financeiras e validação das cotações
+npm run build    # gera dist/index.html
 ```
 
-Para editar e reconstruir o frontend, apenas desenvolvedores precisam de Node.js 22.18+ e pnpm 11.25.0:
+Para usar outro projeto Supabase, copie `.env.example` para `.env`, preencha a URL e a chave e rode a migration da pasta `supabase/migrations`.
 
-```bash
-pnpm install
-pnpm dev
-pnpm test
-pnpm build
+## Estrutura
+
+```
+src/
+  App.tsx                     login → painel e movimentações
+  components/auth-screen      entrar, criar conta, recuperar senha
+  components/monthly-chart    gráfico de barras em SVG
+  components/market-card      cotações em reais
+  components/header-clock     data e hora de Brasília
+  hooks/use-auth              sessão do Supabase
+  hooks/use-ledger            lê e grava os lançamentos
+  lib/finance                 dinheiro, datas, períodos, CSV
+  lib/market                  validação das cotações
+supabase/migrations/          tabela e políticas RLS
+tests/                        testes das regras do front
 ```
 
-`pnpm dev` inicia Vite e FastAPI, e requer as dependências Python instaladas. Em ambientes virtuais fora do PATH, `FINANCE_FLOW_PYTHON` permite informar o executável Python. `pnpm build` verifica TypeScript e recria o HTML independente. O CSS é próprio, com raios de 6 e 8 px e círculos nos avatares, ícones das moedas e indicadores; os componentes gerados sem uso e a API Express anterior foram removidos.
+## Publicação
 
-## Dados locais e exportação
+A cada push na `main`, o GitHub Actions roda os testes, gera o build e publica no GitHub Pages (`.github/workflows/deploy.yml`). Também funciona na Vercel sem configuração (`npm run build`, pasta `dist`).
 
-O HTML mantém as chaves `finance-flow-transactions-v1` e `finance-flow-profile-v1`. O perfil fica no navegador também no modo API. Usar outro navegador, mudar a origem ou mover o arquivo pode abrir um armazenamento diferente; preserve o mesmo local e exporte CSV para cópia. Limpar os dados do navegador pode apagar registros. O HTML baixado não contém seus lançamentos pessoais.
+## Licença
 
-O CSV inclui todos os resultados filtrados, não apenas a página visível. Usa UTF-8 com BOM, separador `;`, vírgula decimal e neutralização de campos que poderiam ser interpretados como fórmulas.
-
-Veja `VALIDACAO.md` para os testes realizados e as limitações verificadas.
+MIT
